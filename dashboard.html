@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Dashboard</title>
+
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family: "Segoe UI", Arial, sans-serif;
+      }
+
+      body {
+        background: #f4f6f8;
+        padding: 30px;
+      }
+
+      .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+      }
+
+      .header h2 {
+        color: #b31217;
+      }
+
+      .logout {
+        padding: 8px 14px;
+        background: #b31217;
+        color: #fff;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+      }
+
+      .card {
+        background: #fff;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+      }
+
+      .card h3 {
+        margin-bottom: 10px;
+        color: #b31217;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 15px;
+      }
+
+      .stat {
+        padding: 15px;
+        background: #ffecec;
+        border-radius: 6px;
+        text-align: center;
+        font-weight: bold;
+      }
+
+      input,
+      select {
+        width: 100%;
+        padding: 10px;
+        margin-top: 5px;
+        border-radius: 5px;
+        border: 1px solid #ccc;
+      }
+
+      button.search {
+        margin-top: 10px;
+        padding: 10px;
+        width: 100%;
+        background: #b31217;
+        color: #fff;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 10px;
+      }
+
+      table th,
+      table td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: center;
+      }
+
+      table th {
+        background: #f2f2f2;
+      }
+
+      #statusText {
+        font-size: 15px;
+      }
+
+      .card button {
+        width: 100%;
+        padding: 12px;
+        margin-top: 10px;
+        border: none;
+        border-radius: 6px;
+        font-size: 15px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+
+      .card button:nth-of-type(1) {
+        background: linear-gradient(135deg, #2ecc71, #27ae60);
+        color: #fff;
+      }
+
+      .card button:nth-of-type(2) {
+        background: linear-gradient(135deg, #e74c3c, #c0392b);
+        color: #fff;
+      }
+
+      .card button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="header">
+      <h2>Blood Bank Dashboard</h2>
+      <button class="logout" onclick="logout()">Logout</button>
+    </div>
+
+    <!-- USER PROFILE -->
+    <div class="card">
+      <h3>Your Profile</h3>
+      <p><b>Name:</b> <span id="u_name"></span></p>
+      <p><b>Email:</b> <span id="u_email"></span></p>
+      <p><b>Blood Group:</b> <span id="u_blood"></span></p>
+      <p><b>City:</b> <span id="u_city"></span></p>
+      <p><b>Last Donation:</b> <span id="u_last"></span></p>
+    </div>
+
+    <!-- BLOOD AVAILABILITY -->
+    <div class="card">
+      <h3>Blood Availability (Live)</h3>
+      <div class="grid" id="stats"></div>
+      <!-- UPDATE AVAILABILITY -->
+      <p>Current Status: <b id="statusText">Checking...</b></p>
+      <button onclick="updateAvailability(true)">Mark Available</button>
+      <button onclick="updateAvailability(false)">Mark Not Available</button>
+    </div>
+    <!-- BLOOD REQUEST -->
+    <div class="card">
+      <h3>Request Blood</h3>
+
+      <label>Blood Group</label>
+      <select id="reqBlood">
+        <option value="">Select Blood Group</option>
+        <option>A+</option>
+        <option>A-</option>
+        <option>B+</option>
+        <option>B-</option>
+        <option>AB+</option>
+        <option>AB-</option>
+        <option>O+</option>
+        <option>O-</option>
+      </select>
+
+      <label>Quantity (Units)</label>
+      <input type="number" id="reqQty" min="1" placeholder="Enter units" />
+
+      <button type="button" id="reqBtn">Submit Request</button>
+
+      <p id="reqMsg" style="margin-top: 10px; font-weight: bold"></p>
+    </div>
+
+    <!-- REQUEST STATUS -->
+    <div class="card">
+      <h3>Your Blood Requests</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Blood Group</th>
+            <th>Quantity</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="reqTable"></tbody>
+      </table>
+    </div>
+
+    <!-- SEARCH -->
+    <div class="card">
+      <h3>Search Donors</h3>
+      <select id="searchBlood">
+        <option value="">Select Blood Group</option>
+        <option>A+</option>
+        <option>A-</option>
+        <option>B+</option>
+        <option>B-</option>
+        <option>AB+</option>
+        <option>AB-</option>
+        <option>O+</option>
+        <option>O-</option>
+      </select>
+
+      <button class="search" onclick="search()">Search</button>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Blood</th>
+            <th>City</th>
+            <th>Mobile</th>
+          </tr>
+        </thead>
+        <tbody id="result"></tbody>
+      </table>
+    </div>
+
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+      import {
+        getAuth,
+        onAuthStateChanged,
+        signOut,
+      } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+      import {
+        getDatabase,
+        ref,
+        onValue,
+        update,
+      } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+      const firebaseConfig = {
+        apiKey: "AIzaSyDYnGXnFbX4QjlkQ_dTTlStUzrUy2cx43M",
+        authDomain: "bloodbankdonor-b1b30.firebaseapp.com",
+        projectId: "bloodbankdonor-b1b30",
+        databaseURL: "https://bloodbankdonor-b1b30-default-rtdb.firebaseio.com",
+      };
+
+      const app = initializeApp(firebaseConfig);
+      const auth = getAuth(app);
+      const db = getDatabase(app);
+
+      onAuthStateChanged(auth, (user) => {
+        if (!user) {
+          window.location.href = "login.html";
+          return;
+        }
+
+        onValue(ref(db, "donors/" + user.uid), (snap) => {
+          const d = snap.val();
+          if (!d) return;
+
+          u_name.innerText = d.name;
+          u_email.innerText = d.email;
+          u_blood.innerText = d.blood_group;
+          u_city.innerText = d.city;
+          u_last.innerText = d.last_donation || "N/A";
+
+          statusText.innerText =
+            d.available === false ? "Not Available" : "Available";
+          statusText.style.color = d.available === false ? "red" : "green";
+
+          fetch("api/save_donor.php", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              uid: user.uid,
+              name: d.name,
+              email: d.email,
+              blood_group: d.blood_group,
+              city: d.city,
+              mobile: d.mobile || "",
+              available: d.available !== false,
+              last_donation: d.last_donation || null,
+            }),
+          });
+        });
+      });
+
+      onValue(ref(db, "donors"), (snap) => {
+        const donors = snap.val() || {};
+        const counts = {};
+        Object.values(donors).forEach((d) => {
+          if (d.available !== false && d.blood_group) {
+            counts[d.blood_group] = (counts[d.blood_group] || 0) + 1;
+          }
+        });
+
+        stats.innerHTML = "";
+        if (Object.keys(counts).length === 0) {
+          stats.innerHTML = "<div class='stat'>No donors available</div>";
+          return;
+        }
+
+        for (let bg in counts) {
+          stats.innerHTML += `<div class="stat">${bg}<br>${counts[bg]} Available</div>`;
+        }
+      });
+
+      window.updateAvailability = function (status) {
+        const user = auth.currentUser;
+        if (!user) return;
+
+        update(ref(db, "donors/" + user.uid), {
+          available: status,
+          last_updated: new Date().toISOString(),
+        });
+      };
+
+      window.search = function () {
+        const bg = searchBlood.value;
+        result.innerHTML = "";
+
+        onValue(
+          ref(db, "donors"),
+          (snap) => {
+            let found = false;
+            Object.values(snap.val() || {}).forEach((d) => {
+              if (
+                d.available !== false &&
+                (bg === "" || d.blood_group === bg)
+              ) {
+                found = true;
+                result.innerHTML += `
+                        <tr>
+                            <td>${d.name}</td>
+                            <td>${d.blood_group}</td>
+                            <td>${d.city}</td>
+                            <td>${d.mobile}</td>
+                        </tr>`;
+              }
+            });
+
+            if (!found) {
+              result.innerHTML = `<tr><td colspan="4">No matching donors found</td></tr>`;
+            }
+          },
+          { onlyOnce: true }
+        );
+      };
+
+      window.requestBlood = async function () {
+        const msg = document.getElementById("reqMsg");
+        const btn = document.getElementById("reqBtn");
+
+        const user = auth.currentUser;
+        if (!user) {
+          msg.innerText = "Please sign in again.";
+          msg.style.color = "red";
+          return;
+        }
+
+        const bloodGroup = document.getElementById("reqBlood").value;
+        const quantity = document.getElementById("reqQty").value;
+
+        if (!bloodGroup || !quantity) {
+          msg.innerText = "Please fill all fields";
+          msg.style.color = "red";
+          return;
+        }
+
+        msg.innerText = "Submitting...";
+        msg.style.color = "#666";
+        if (btn) {
+          btn.disabled = true;
+        }
+
+        try {
+          const res = await fetch("api/request_blood.php", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              userId: user.uid,
+              bloodGroup,
+              quantity: Number(quantity),
+            }),
+          });
+
+          const text = await res.text();
+          let data = { success: false, message: "Request failed" };
+          try {
+            data = JSON.parse(text);
+          } catch (_) {}
+
+          msg.innerText = data.message || (res.ok ? "Request submitted." : "Request failed.");
+          msg.style.color = data.success ? "green" : "red";
+
+          if (data.success) {
+            await loadRequests();
+          }
+        } catch (err) {
+          msg.innerText = "Network error. Please try again.";
+          msg.style.color = "red";
+        } finally {
+          if (btn) btn.disabled = false;
+        }
+      };
+
+      async function loadRequests() {
+        const user = auth.currentUser;
+        if (!user) return;
+
+        const table = document.getElementById("reqTable");
+        if (!table) return;
+
+        try {
+          const res = await fetch("api/get_user_requests.php?uid=" + encodeURIComponent(user.uid));
+          const data = await res.json();
+          const list = Array.isArray(data) ? data : [];
+
+          table.innerHTML = "";
+          if (list.length === 0) {
+            table.innerHTML = `<tr><td colspan="3">No requests yet</td></tr>`;
+            return;
+          }
+
+          list.forEach((r) => {
+            table.innerHTML += `
+        <tr>
+            <td>${r.bloodGroup || ""}</td>
+            <td>${r.quantity ?? ""}</td>
+            <td>${r.status || ""}</td>
+        </tr>`;
+          });
+        } catch (_) {
+          table.innerHTML = `<tr><td colspan="3">Could not load requests</td></tr>`;
+        }
+      }
+
+      onAuthStateChanged(auth, (user) => {
+        if (user) loadRequests();
+      });
+
+      const reqBtn = document.getElementById("reqBtn");
+      if (reqBtn) reqBtn.addEventListener("click", window.requestBlood);
+
+      window.logout = function () {
+        signOut(auth).then(() => (window.location.href = "login.html"));
+      };
+    </script>
+  </body>
+</html>

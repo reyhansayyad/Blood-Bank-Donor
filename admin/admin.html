@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Admin Panel</title>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "Segoe UI", Arial, sans-serif;
+        }
+
+        body {
+            background: #f4f6f8;
+            padding: 30px;
+        }
+
+        h2, h3 {
+            color: #b31217;
+            margin-bottom: 15px;
+        }
+
+        .card {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        button {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 5px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .accept {
+            background: #2ecc71;
+            color: #fff;
+        }
+
+        .reject {
+            background: #e74c3c;
+            color: #fff;
+        }
+
+        .delete {
+            background: #333;
+            color: #fff;
+        }
+
+        button + button { margin-left: 6px; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: center;
+        }
+
+        th {
+            background: #f2f2f2;
+        }
+    </style>
+</head>
+
+<body>
+
+<h2>Admin Dashboard</h2>
+
+<!-- 🔹 DONORS (READ ONLY FROM FIREBASE) -->
+<div class="card">
+    <h3>Registered Donors (Firebase)</h3>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Blood</th>
+                <th>City</th>
+                <th>Mobile</th>
+                <th>Available</th>
+            </tr>
+        </thead>
+        <tbody id="donorList"></tbody>
+    </table>
+</div>
+
+<!-- 🔹 BLOOD REQUESTS (MONGODB) -->
+<div class="card">
+    <h3>Blood Requests</h3>
+
+    <table>
+        <thead>
+            <tr>
+                <th>User ID</th>
+                <th>Blood Group</th>
+                <th>Quantity</th>
+                <th>Status</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody id="requestList"></tbody>
+    </table>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+const firebaseConfig = {
+    apiKey: "AIzaSyDYnGXnFbX4QjlkQ_dTTlStUzrUy2cx43M",
+    authDomain: "bloodbankdonor-b1b30.firebaseapp.com",
+    projectId: "bloodbankdonor-b1b30",
+    databaseURL: "https://bloodbankdonor-b1b30-default-rtdb.firebaseio.com"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getDatabase(app);
+
+function api(url, body = null) {
+    return fetch(url, {
+        method: body ? "POST" : "GET",
+        headers: { "Content-Type": "application/json" },
+        body: body ? JSON.stringify(body) : null
+    }).then(r => r.json());
+}
+
+onAuthStateChanged(auth, user => {
+    if (!user) location.href = "../login.html";
+    loadDonors();
+    loadRequests();
+});
+
+/* 🔹 LOAD DONORS (Firebase only) */
+function loadDonors() {
+    onValue(ref(db, "donors"), snap => {
+        donorList.innerHTML = "";
+        Object.values(snap.val() || {}).forEach(d => {
+            donorList.innerHTML += `
+            <tr>
+                <td>${d.name}</td>
+                <td>${d.blood_group}</td>
+                <td>${d.city}</td>
+                <td>${d.mobile}</td>
+                <td>${d.available !== false ? "Yes" : "No"}</td>
+            </tr>`;
+        });
+    }, { onlyOnce: true });
+}
+
+/* 🔹 LOAD BLOOD REQUESTS (MongoDB – blood_requests) */
+function loadRequests() {
+    fetch("../api/admin/get_requests.php")
+        .then(r => r.json())
+        .then(data => {
+            requestList.innerHTML = "";
+            const list = Array.isArray(data) ? data : (data.error ? [] : []);
+            if (list.length === 0) {
+                requestList.innerHTML =
+                    `<tr><td colspan="5">No requests</td></tr>`;
+                return;
+            }
+            list.forEach(r => {
+                requestList.innerHTML += `
+            <tr data-request-id="${escapeAttr(r._id || "")}">
+                <td>${escapeHtml(r.userId)}</td>
+                <td>${escapeHtml(r.bloodGroup)}</td>
+                <td>${r.quantity ?? ""}</td>
+                <td>${escapeHtml(r.status)}</td>
+                <td>
+                    <button class="accept" type="button" data-action="accept">Accept</button>
+                    <button class="reject" type="button" data-action="reject">Reject</button>
+                    <button class="delete" type="button" data-action="delete">Delete</button>
+                </td>
+            </tr>`;
+            });
+        })
+        .catch(() => {
+            requestList.innerHTML = `<tr><td colspan="5">Failed to load requests</td></tr>`;
+        });
+}
+
+function escapeHtml(s) {
+    if (s == null) return "";
+    const div = document.createElement("div");
+    div.textContent = s;
+    return div.innerHTML;
+}
+
+function escapeAttr(s) {
+    if (s == null) return "";
+    const div = document.createElement("div");
+    div.textContent = s;
+    return div.innerHTML.replace(/"/g, "&quot;");
+}
+
+/* 🔹 Event delegation: one listener on the table for Accept/Reject/Delete */
+requestList.addEventListener("click", function (e) {
+    const btn = e.target.closest("button[data-action]");
+    if (!btn) return;
+    const row = btn.closest("tr[data-request-id]");
+    if (!row) return;
+    const id = row.getAttribute("data-request-id");
+    if (!id) return;
+
+    const action = btn.getAttribute("data-action");
+    if (action === "delete") {
+        if (!confirm("Delete this request?")) return;
+        fetch("../api/admin/delete_request.php", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id })
+        })
+            .then(r => r.json())
+            .then(() => loadRequests())
+            .catch(() => loadRequests());
+        return;
+    }
+
+    const status = action === "accept" ? "accepted" : "rejected";
+    btn.disabled = true;
+    fetch("../api/admin/update_request.php", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, status })
+    })
+        .then(async (r) => {
+            const text = await r.text();
+            let data = null;
+            try { data = JSON.parse(text); } catch (_) {}
+            if (!data) {
+                throw new Error(r.ok ? "Invalid response" : "Server error: " + r.status);
+            }
+            return { ok: r.ok, data };
+        })
+        .then(({ ok, data }) => {
+            loadRequests();
+            if (!ok || (data && !data.success)) {
+                alert(data && data.message ? data.message : "Update failed");
+            }
+        })
+        .catch((err) => {
+            btn.disabled = false;
+            alert(err.message || "Request failed. Please try again.");
+        });
+});
+</script>
+
+</body>
+</html>
